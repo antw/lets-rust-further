@@ -1,18 +1,13 @@
 mod handlers;
+mod router;
 
-use std::{net::SocketAddr, sync::Arc};
+use std::net::SocketAddr;
 
-use axum::{
-    extract::Extension,
-    handler::Handler,
-    routing::{get, post},
-    Router,
-};
 use clap::Parser;
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 
-#[derive(Debug, Default, Parser)]
+#[derive(Clone, Debug, Default, Parser)]
 #[clap(version = VERSION, about = "A simple REST API")]
 struct Arguments {
     #[clap(short, long, default_value_t = 4000, help = "Port to listen on")]
@@ -22,29 +17,26 @@ struct Arguments {
     env: String,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 struct Application {
     config: Arguments,
+}
+
+async fn signal_shutdown() {
+    tokio::signal::ctrl_c()
+        .await
+        .expect("expect tokio signal ctrl-c")
 }
 
 #[tokio::main]
 async fn main() {
     tracing_subscriber::fmt::init();
 
-    let app = Arc::new(Application {
+    let app = Application {
         config: Arguments::parse(),
-    });
+    };
 
     let local_app = app.clone();
-
-    let router = Router::new()
-        .route("/v1/healthcheck", get(handlers::healthcheck::healthcheck))
-        // Movies
-        .route("/v1/movies", post(handlers::movies::create_movie))
-        .route("/v1/movies/:id", get(handlers::movies::show_movie))
-        .layer(Extension(app))
-        .fallback(handlers::not_found.into_service());
-
     let addr = SocketAddr::from(([127, 0, 0, 1], local_app.config.port));
 
     tracing::info!(
@@ -54,7 +46,8 @@ async fn main() {
     );
 
     axum::Server::bind(&addr)
-        .serve(router.into_make_service())
+        .serve(router::build_router(app).into_make_service())
+        .with_graceful_shutdown(signal_shutdown())
         .await
         .unwrap();
 }
