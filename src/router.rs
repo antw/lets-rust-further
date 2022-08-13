@@ -45,6 +45,9 @@ pub(crate) fn build_router(app: crate::Application) -> Router {
                 .service(post(handlers::movies::create_movie)),
         )
         .fallback(handlers::not_found.into_service())
-        .layer(Extension(Arc::new(app)))
-        .layer(TraceLayer::new_for_http())
+        .layer(
+            ServiceBuilder::new()
+                .layer(Extension(Arc::new(app)))
+                .layer(TraceLayer::new_for_http()),
+        )
 }
