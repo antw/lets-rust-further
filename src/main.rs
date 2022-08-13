@@ -1,5 +1,9 @@
+#[macro_use]
+extern crate lazy_static;
+
 mod handlers;
 mod router;
+mod validator;
 
 use std::net::SocketAddr;
 
