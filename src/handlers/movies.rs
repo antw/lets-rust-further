@@ -2,33 +2,18 @@ use axum::{extract::Path, http::StatusCode, response::IntoResponse, Json};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
-
-use crate::validator;
+use validator::Validate;
 
 pub(crate) async fn create_movie(
     Json(params): Json<MovieParams>,
 ) -> Result<impl IntoResponse, impl IntoResponse> {
-    tracing::info!("received {:?}", params);
-
-    let mut validator = validator::Validator::new();
-    validate_movie(&mut validator, &params);
-
-    if !validator.is_valid() {
-        return Err(validator);
+    match params.validate() {
+        Err(e) => Err((
+            StatusCode::UNPROCESSABLE_ENTITY,
+            Json(json!({"errors": e.into_errors()})),
+        )),
+        Ok(_) => Ok((StatusCode::CREATED, Json(Movie::from(params)))),
     }
-
-    Ok((
-        StatusCode::CREATED,
-        Json(Movie {
-            id: 0,
-            title: params.title.unwrap(),
-            year: params.year.unwrap(),
-            runtime: params.runtime.unwrap(),
-            genres: params.genres.unwrap(),
-            created_at: Utc::now(),
-            version: 1,
-        }),
-    ))
 }
 
 pub(crate) async fn show_movie(
@@ -52,11 +37,32 @@ pub(crate) async fn show_movie(
     ))
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Validate)]
 pub(crate) struct MovieParams {
+    #[validate(
+        required(message = "cannot be blank"),
+        length(min = 1, message = "cannot be blank"),
+        length(max = 500, message = "cannot be longer than 500 bytes")
+    )]
     title: Option<String>,
+
+    #[validate(
+        required(message = "cannot be blank"),
+        range(min = 1888, message = "cannot be less than 1888")
+    )]
     year: Option<u32>,
+
+    #[validate(
+        required(message = "cannot be blank"),
+        range(min = 1, message = "cannot be less than 1")
+    )]
     runtime: Option<u32>,
+
+    #[validate(
+        required(message = "cannot be blank"),
+        length(min = 1, message = "cannot be empty"),
+        length(max = 5, message = "cannot have more than 5 genres")
+    )]
     genres: Option<Vec<String>>,
 }
 
@@ -72,51 +78,16 @@ struct Movie {
     version: u32,
 }
 
-fn validate_movie(validator: &mut validator::Validator, params: &MovieParams) {
-    validator.check(params.title.is_some(), "title", "cannot be blank");
-    validator.check(params.year.is_some(), "year", "cannot be blank");
-    validator.check(params.runtime.is_some(), "runtime", "cannot be blank");
-    validator.check(params.genres.is_some(), "genres", "cannot be blank");
-
-    validator.check(
-        params.title.is_none() || !params.title.as_ref().unwrap().is_empty(),
-        "title",
-        "cannot be blank",
-    );
-
-    validator.check(
-        params.title.is_none() || params.title.as_ref().unwrap().len() <= 500,
-        "title",
-        "cannot be more than 500 bytes long",
-    );
-
-    validator.check(
-        params.year.is_none() || params.year.as_ref().unwrap() > &1888,
-        "year",
-        "cannot be less than 1888",
-    );
-
-    validator.check(
-        params.runtime.is_none() || params.runtime.as_ref().unwrap() > &0,
-        "runtime",
-        "cannot be zero",
-    );
-
-    validator.check(
-        params.genres.is_none() || params.genres.as_ref().unwrap().len() >= 1,
-        "genres",
-        "cannot be blank",
-    );
-
-    validator.check(
-        params.genres.is_none() || params.genres.as_ref().unwrap().len() <= 5,
-        "genres",
-        "cannot contain more than 5 genres",
-    );
-
-    validator.check(
-        params.genres.is_none() || validator::unique(params.genres.as_ref().unwrap()),
-        "genres",
-        "cannot contain duplicate values",
-    );
+impl From<MovieParams> for Movie {
+    fn from(params: MovieParams) -> Self {
+        Self {
+            id: 0,
+            title: params.title.unwrap(),
+            year: params.year.unwrap(),
+            runtime: params.runtime.unwrap(),
+            genres: params.genres.unwrap(),
+            created_at: Utc::now(),
+            version: 1,
+        }
+    }
 }
