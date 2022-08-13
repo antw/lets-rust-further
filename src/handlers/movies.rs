@@ -1,9 +1,11 @@
 use axum::{extract::Path, http::StatusCode, response::IntoResponse, Json};
 use chrono::{DateTime, Utc};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use serde_json::json;
 
-pub(crate) async fn create_movie() -> impl IntoResponse {
+pub(crate) async fn create_movie(Json(params): Json<MovieParams>) -> impl IntoResponse {
+    tracing::info!("received {:?}", params);
+
     (
         StatusCode::CREATED,
         Json(json!({"message": "movie created"})),
@@ -31,13 +33,21 @@ pub(crate) async fn show_movie(
     ))
 }
 
+#[derive(Debug, Deserialize)]
+pub(crate) struct MovieParams {
+    title: Option<String>,
+    year: Option<u32>,
+    runtime: Option<u32>,
+    genres: Option<Vec<String>>,
+}
+
 #[derive(Debug, Serialize)]
 struct Movie {
     id: u64,
-    created_at: DateTime<Utc>,
     title: String,
     year: u32,
     runtime: u32,
     genres: Vec<String>,
+    created_at: DateTime<Utc>,
     version: u32,
 }
