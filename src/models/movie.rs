@@ -17,6 +17,26 @@ pub struct Movie {
     version: i32,
 }
 
+impl Movie {
+    pub fn update(&mut self, params: MovieParams) {
+        if params.title.is_some() {
+            self.title = params.title.unwrap();
+        }
+
+        if params.year.is_some() {
+            self.year = params.year.unwrap();
+        }
+
+        if params.runtime.is_some() {
+            self.runtime = params.runtime.unwrap();
+        }
+
+        if params.genres.is_some() {
+            self.genres = params.genres.unwrap();
+        }
+    }
+}
+
 #[derive(Debug, Deserialize, Validate)]
 pub struct MovieParams {
     #[validate(
@@ -74,5 +94,25 @@ impl MovieModel {
         .bind(params.genres.as_ref().unwrap())
         .fetch_one(&*self.db)
         .await
+    }
+
+    pub async fn update(&self, movie: &mut Movie) -> sqlx::Result<()> {
+        let version: (i32,) = sqlx::query_as(
+            "UPDATE movies
+                SET title = $1, year = $2, runtime = $3, genres = $4, version = version + 1
+                WHERE id = $5
+                RETURNING version",
+        )
+        .bind(&movie.title)
+        .bind(&movie.year)
+        .bind(&movie.runtime)
+        .bind(&movie.genres)
+        .bind(&movie.id)
+        .fetch_one(&*self.db)
+        .await?;
+
+        movie.version = version.0;
+
+        Ok(())
     }
 }
