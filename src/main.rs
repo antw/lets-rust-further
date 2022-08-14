@@ -1,12 +1,12 @@
-#[macro_use]
-extern crate lazy_static;
-
 mod handlers;
+mod models;
 mod router;
 
 use std::net::SocketAddr;
+use std::sync::Arc;
 
 use clap::Parser;
+use sqlx::postgres::PgPoolOptions;
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 
@@ -20,9 +20,9 @@ struct Arguments {
     env: String,
 }
 
-#[derive(Clone, Debug)]
 struct Application {
     config: Arguments,
+    models: models::Models,
 }
 
 async fn signal_shutdown() {
@@ -32,20 +32,26 @@ async fn signal_shutdown() {
 }
 
 #[tokio::main]
-async fn main() {
+async fn main() -> Result<(), sqlx::Error> {
     tracing_subscriber::fmt::init();
+
+    let pool = PgPoolOptions::new()
+        .max_connections(5)
+        .connect("postgres://greenscreen:pa55word@localhost:5432/greenscreen?sslmode=disable")
+        .await?;
 
     let app = Application {
         config: Arguments::parse(),
+        models: models::Models::new(Arc::new(pool)),
     };
 
-    let local_app = app.clone();
-    let addr = SocketAddr::from(([127, 0, 0, 1], local_app.config.port));
+    // let local_app = app.clone();
+    let addr = SocketAddr::from(([127, 0, 0, 1], app.config.port));
 
     tracing::info!(
         "{} server listening on http://localhost:{}",
-        local_app.config.env,
-        local_app.config.port
+        app.config.env,
+        app.config.port
     );
 
     axum::Server::bind(&addr)
@@ -53,4 +59,6 @@ async fn main() {
         .with_graceful_shutdown(signal_shutdown())
         .await
         .unwrap();
+
+    Ok(())
 }
