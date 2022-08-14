@@ -1,13 +1,15 @@
 use crate::handlers;
 
 use std::sync::Arc;
+use std::time::Duration;
 
 use axum::{
+    error_handling::HandleErrorLayer,
     extract::Extension,
     handler::Handler,
-    http::{header, Method},
+    http::{header, Method, StatusCode},
     routing::{get, post},
-    Router,
+    BoxError, Router,
 };
 
 use tower::ServiceBuilder;
@@ -48,6 +50,22 @@ pub(crate) fn build_router(app: crate::Application) -> Router {
         .layer(
             ServiceBuilder::new()
                 .layer(Extension(Arc::new(app)))
-                .layer(TraceLayer::new_for_http()),
+                .layer(HandleErrorLayer::new(handle_timeout_error))
+                .layer(TraceLayer::new_for_http())
+                .timeout(Duration::from_secs(30)),
         )
+}
+
+async fn handle_timeout_error(err: BoxError) -> (StatusCode, String) {
+    if err.is::<tower::timeout::error::Elapsed>() {
+        (
+            StatusCode::REQUEST_TIMEOUT,
+            "Request took too long".to_string(),
+        )
+    } else {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Unhandled internal error: {}", err),
+        )
+    }
 }

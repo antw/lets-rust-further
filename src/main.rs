@@ -25,6 +25,9 @@ struct Application {
     models: models::Models,
 }
 
+/// A type alias for accessing the Application instance in handlers.
+type App = axum::Extension<Arc<Application>>;
+
 async fn signal_shutdown() {
     tokio::signal::ctrl_c()
         .await
