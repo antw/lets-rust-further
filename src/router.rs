@@ -8,9 +8,11 @@ use axum::{
     extract::Extension,
     handler::Handler,
     http::{header, Method, StatusCode},
+    response::IntoResponse,
     routing::{get, post},
-    BoxError, Router,
+    BoxError, Json, Router,
 };
+use serde_json::json;
 
 use tower::ServiceBuilder;
 use tower_http::{cors, trace::TraceLayer};
@@ -64,16 +66,16 @@ pub(crate) fn build_router(app: crate::Application) -> Router {
         )
 }
 
-async fn handle_timeout_error(err: BoxError) -> (StatusCode, String) {
+async fn handle_timeout_error(err: BoxError) -> impl IntoResponse {
     if err.is::<tower::timeout::error::Elapsed>() {
         (
             StatusCode::REQUEST_TIMEOUT,
-            "Request took too long".to_string(),
+            Json(json!({ "error": "request took too long" })),
         )
     } else {
         (
             StatusCode::INTERNAL_SERVER_ERROR,
-            format!("Unhandled internal error: {}", err),
+            Json(json!({ "error": "internal server error" })),
         )
     }
 }
