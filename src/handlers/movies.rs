@@ -43,3 +43,11 @@ pub(crate) async fn update_movie(
 
     Ok((StatusCode::OK, Json(movie)))
 }
+
+pub(crate) async fn delete_movie(
+    Path(id): Path<i64>,
+    Extension(app): App,
+) -> Result<impl IntoResponse, HandlerError> {
+    app.models.movies.delete(id).await?;
+    Ok((StatusCode::NO_CONTENT, Json(())))
+}

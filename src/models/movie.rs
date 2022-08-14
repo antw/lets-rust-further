@@ -117,4 +117,12 @@ impl MovieModel {
 
         Ok(())
     }
+
+    pub async fn delete(&self, id: i64) -> sqlx::Result<()> {
+        sqlx::query!("DELETE FROM movies WHERE id = $1", id)
+            .execute(&*self.db)
+            .await?;
+
+        Ok(())
+    }
 }

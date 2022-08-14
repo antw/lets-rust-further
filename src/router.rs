@@ -37,8 +37,16 @@ pub(crate) fn build_router(app: crate::Application) -> Router {
         .route(
             "/v1/movies/:id",
             ServiceBuilder::new()
-                .layer(build_cors_layer([Method::GET, Method::PATCH]))
-                .service(get(handlers::movies::show_movie).patch(handlers::movies::update_movie)),
+                .layer(build_cors_layer([
+                    Method::GET,
+                    Method::PATCH,
+                    Method::DELETE,
+                ]))
+                .service(
+                    get(handlers::movies::show_movie)
+                        .patch(handlers::movies::update_movie)
+                        .delete(handlers::movies::delete_movie),
+                ),
         )
         .route(
             "/v1/movies",
