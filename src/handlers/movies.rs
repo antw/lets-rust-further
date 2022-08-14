@@ -48,6 +48,8 @@ pub(crate) async fn delete_movie(
     Path(id): Path<i64>,
     Extension(app): App,
 ) -> Result<impl IntoResponse, HandlerError> {
-    app.models.movies.delete(id).await?;
+    let movie = app.models.movies.get(id).await?;
+    app.models.movies.delete(movie.id).await?;
+
     Ok((StatusCode::NO_CONTENT, Json(())))
 }

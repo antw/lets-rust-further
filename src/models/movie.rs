@@ -7,14 +7,14 @@ use validator::Validate;
 
 #[derive(Debug, Serialize, FromRow)]
 pub struct Movie {
-    id: i64,
-    title: String,
-    year: i32,
-    runtime: i32,
-    genres: Vec<String>,
+    pub id: i64,
+    pub title: String,
+    pub year: i32,
+    pub runtime: i32,
+    pub genres: Vec<String>,
     #[serde(skip)]
-    created_at: DateTime<Utc>,
-    version: i32,
+    pub created_at: DateTime<Utc>,
+    pub version: i32,
 }
 
 impl Movie {
