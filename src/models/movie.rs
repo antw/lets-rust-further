@@ -72,46 +72,48 @@ pub struct MovieModel {
 
 impl MovieModel {
     pub async fn get(&self, id: i64) -> Result<Movie, sqlx::Error> {
-        sqlx::query_as::<_, Movie>(
+        sqlx::query_as!(
+            Movie,
             "SELECT id, title, year, runtime, genres, created_at, version
                 FROM movies
                 WHERE id = $1",
+            id
         )
-        .bind(id)
         .fetch_one(&*self.db)
         .await
     }
 
     pub async fn insert(&self, params: &MovieParams) -> sqlx::Result<Movie> {
-        sqlx::query_as::<_, Movie>(
+        sqlx::query_as!(
+            Movie,
             "INSERT INTO movies (title, year, runtime, genres)
                 VALUES($1, $2, $3, $4)
                 RETURNING *",
+            params.title.as_ref().unwrap(),
+            params.year.unwrap(),
+            params.runtime.unwrap(),
+            params.genres.as_ref().unwrap()
         )
-        .bind(params.title.as_ref().unwrap())
-        .bind(params.year.unwrap())
-        .bind(params.runtime.unwrap())
-        .bind(params.genres.as_ref().unwrap())
         .fetch_one(&*self.db)
         .await
     }
 
     pub async fn update(&self, movie: &mut Movie) -> sqlx::Result<()> {
-        let version: (i32,) = sqlx::query_as(
+        let result = sqlx::query!(
             "UPDATE movies
                 SET title = $1, year = $2, runtime = $3, genres = $4, version = version + 1
                 WHERE id = $5
                 RETURNING version",
+            &movie.title,
+            &movie.year,
+            &movie.runtime,
+            &movie.genres,
+            &movie.id
         )
-        .bind(&movie.title)
-        .bind(&movie.year)
-        .bind(&movie.runtime)
-        .bind(&movie.genres)
-        .bind(&movie.id)
         .fetch_one(&*self.db)
         .await?;
 
-        movie.version = version.0;
+        movie.version = result.version;
 
         Ok(())
     }
